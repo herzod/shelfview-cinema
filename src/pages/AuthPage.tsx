@@ -1,4 +1,5 @@
 import { Film } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,7 +28,12 @@ const AuthPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="glass-card rounded-2xl p-10 max-w-sm w-full text-center space-y-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="glass-card rounded-2xl p-10 max-w-sm w-full text-center space-y-8"
+      >
         <div className="flex flex-col items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/15 glow-primary">
             <Film className="h-8 w-8 text-primary" />
@@ -65,7 +71,7 @@ const AuthPage = () => {
           </svg>
           Continue with Google
         </Button>
-      </div>
+      </motion.div>
     </div>
   );
 };

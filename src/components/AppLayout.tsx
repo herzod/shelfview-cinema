@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Outlet } from "react-router-dom";
+import { AnimatedOutlet } from "@/components/AnimatedOutlet";
 
 export function AppLayout() {
   return (
@@ -12,7 +12,7 @@ export function AppLayout() {
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
           </header>
           <div className="flex-1 p-4 md:p-6">
-            <Outlet />
+            <AnimatedOutlet />
           </div>
         </main>
       </div>

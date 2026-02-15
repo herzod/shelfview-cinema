@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type WatchStatus = Database["public"]["Enums"]["watch_status"];
@@ -42,6 +43,7 @@ export function useUserMovie(movieId: number | null) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: () => toast.error("Failed to add movie to shelf"),
   });
 
   const updateStatus = useMutation({
@@ -56,6 +58,7 @@ export function useUserMovie(movieId: number | null) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: () => toast.error("Failed to update status"),
   });
 
   const updateRating = useMutation({
@@ -68,6 +71,7 @@ export function useUserMovie(movieId: number | null) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: () => toast.error("Failed to update rating"),
   });
 
   const updateNotes = useMutation({
@@ -80,6 +84,7 @@ export function useUserMovie(movieId: number | null) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: () => toast.error("Failed to save notes"),
   });
 
   const removeFromShelf = useMutation({
@@ -92,6 +97,7 @@ export function useUserMovie(movieId: number | null) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: () => toast.error("Failed to remove movie"),
   });
 
   return {
