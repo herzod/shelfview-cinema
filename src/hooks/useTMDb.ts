@@ -53,4 +53,40 @@ export function useTrendingMovies() {
   });
 }
 
+export interface TMDbMovieDetails {
+  id: number;
+  title: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date: string;
+  vote_average: number;
+  runtime: number | null;
+  genres: { id: number; name: string }[];
+  credits?: {
+    cast: { id: number; name: string; character: string; profile_path: string | null }[];
+  };
+}
+
+export function useMovieDetails(movieId: number | null) {
+  return useQuery<TMDbMovieDetails>({
+    queryKey: ["tmdb-details", movieId],
+    queryFn: async () => {
+      const url = new URL(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tmdb-proxy`
+      );
+      url.searchParams.set("action", "details");
+      url.searchParams.set("movie_id", String(movieId));
+
+      const res = await fetch(url.toString(), {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+      });
+      if (!res.ok) throw new Error("Failed to fetch movie details");
+      return res.json();
+    },
+    enabled: movieId !== null,
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
