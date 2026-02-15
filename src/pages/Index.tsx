@@ -3,11 +3,14 @@ import { Search, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieGridSkeleton } from "@/components/MovieGridSkeleton";
+import { MovieDetailPanel } from "@/components/MovieDetailPanel";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useMovieSearch, useTrendingMovies, TMDbMovie } from "@/hooks/useTMDb";
 
 const Index = () => {
   const [query, setQuery] = useState("");
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const debouncedQuery = useDebounce(query.trim(), 400);
 
   const isSearching = debouncedQuery.length >= 2;
@@ -18,8 +21,8 @@ const Index = () => {
   const movies = activeQuery.data?.results ?? [];
 
   const handleMovieClick = (movie: TMDbMovie) => {
-    // Phase 4 will handle the detail panel
-    console.log("Movie clicked:", movie.title);
+    setSelectedMovieId(movie.id);
+    setPanelOpen(true);
   };
 
   return (
@@ -81,6 +84,12 @@ const Index = () => {
           </p>
         </div>
       ) : null}
+
+      <MovieDetailPanel
+        movieId={selectedMovieId}
+        open={panelOpen}
+        onOpenChange={setPanelOpen}
+      />
     </div>
   );
 };
