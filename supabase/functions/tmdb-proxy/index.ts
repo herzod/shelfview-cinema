@@ -34,6 +34,8 @@ Deno.serve(async (req) => {
       tmdbUrl = `${TMDB_BASE}/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`;
     } else if (action === "trending") {
       tmdbUrl = `${TMDB_BASE}/trending/movie/week?api_key=${TMDB_API_KEY}&page=${page}`;
+    } else if (action === "similar" && movieId) {
+      tmdbUrl = `${TMDB_BASE}/movie/${movieId}/similar?api_key=${TMDB_API_KEY}&page=1`;
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid action. Use: search, details, or trending" }),

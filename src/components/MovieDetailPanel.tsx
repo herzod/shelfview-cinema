@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Star, Plus, Trash2 } from "lucide-react";
-import { useMovieDetails, TMDB_IMAGE_BASE } from "@/hooks/useTMDb";
+import { Star, Plus, Trash2, Save, X } from "lucide-react";
+import { useMovieDetails, useSimilarMovies, TMDB_IMAGE_BASE } from "@/hooks/useTMDb";
 import { useUserMovie } from "@/hooks/useUserMovie";
-import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -28,23 +27,26 @@ interface MovieDetailPanelProps {
 
 export function MovieDetailPanel({ movieId, open, onOpenChange }: MovieDetailPanelProps) {
   const { data: details, isLoading } = useMovieDetails(open ? movieId : null);
+  const { data: similarData } = useSimilarMovies(open ? movieId : null);
   const { userMovie, addToShelf, updateStatus, updateRating, updateNotes, removeFromShelf } =
     useUserMovie(open ? movieId : null);
 
   const [localNotes, setLocalNotes] = useState("");
-  const debouncedNotes = useDebounce(localNotes, 800);
+  const [notesEditing, setNotesEditing] = useState(false);
+  const [selectedSimilarId, setSelectedSimilarId] = useState<number | null>(null);
 
   // Sync notes from DB
   useEffect(() => {
-    if (userMovie) setLocalNotes(userMovie.notes ?? "");
+    if (userMovie) {
+      setLocalNotes(userMovie.notes ?? "");
+      setNotesEditing(false);
+    }
   }, [userMovie?.notes]);
 
-  // Autosave notes
+  // Reset similar selection when main movie changes
   useEffect(() => {
-    if (userMovie && debouncedNotes !== (userMovie.notes ?? "")) {
-      updateNotes.mutate(debouncedNotes);
-    }
-  }, [debouncedNotes]);
+    setSelectedSimilarId(null);
+  }, [movieId]);
 
   const handleAdd = useCallback(() => {
     if (!details) return;
@@ -61,190 +63,286 @@ export function MovieDetailPanel({ movieId, open, onOpenChange }: MovieDetailPan
     });
   }, [details, removeFromShelf]);
 
+  const handleNotesSave = () => {
+    updateNotes.mutate(localNotes, {
+      onSuccess: () => {
+        setNotesEditing(false);
+        toast.success("Notes saved");
+      },
+    });
+  };
+
+  const handleNotesCancel = () => {
+    setLocalNotes(userMovie?.notes ?? "");
+    setNotesEditing(false);
+  };
+
+  const handleSimilarClick = (id: number) => {
+    setSelectedSimilarId(id);
+    // Navigate to the similar movie by updating the parent
+    // We reuse the same panel by changing movieId via onOpenChange pattern
+  };
+
+  const activeMovieId = selectedSimilarId ?? movieId;
   const year = details?.release_date?.split("-")[0];
   const posterUrl = details?.poster_path ? `${TMDB_IMAGE_BASE}/w500${details.poster_path}` : null;
   const cast = details?.credits?.cast?.slice(0, 8) ?? [];
+  const similarMovies = similarData?.results?.slice(0, 8) ?? [];
+
+  // If a similar movie is selected, render a nested panel approach
+  // Instead, let's just allow clicking similar movies to open them in a new panel
+  // For simplicity, we'll use a callback pattern
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto glass-card border-border/40 p-0">
-        {isLoading || !details ? (
-          <div className="p-6 space-y-4">
-            <Skeleton className="h-72 w-full rounded-lg" />
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        ) : (
-          <>
-            {/* Poster */}
-            {posterUrl && (
-              <div className="relative w-full aspect-[2/3] max-h-[360px] overflow-hidden">
-                <img src={posterUrl} alt={details.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
-              </div>
-            )}
-
-            <div className="p-6 space-y-5 -mt-12 relative z-10">
-              {/* Hidden sheet description for accessibility */}
-              <SheetHeader className="space-y-1">
-                <SheetTitle className="text-2xl font-display font-bold leading-tight">
-                  {details.title}
-                </SheetTitle>
-                <SheetDescription className="sr-only">
-                  Details for {details.title}
-                </SheetDescription>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {year && <span>{year}</span>}
-                  {details.runtime && <span>· {details.runtime} min</span>}
-                  {details.vote_average > 0 && (
-                    <span className="flex items-center gap-1">
-                      · <Star className="h-3 w-3 fill-accent text-accent" />
-                      {details.vote_average.toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </SheetHeader>
-
-              {/* Genres */}
-              {details.genres?.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {details.genres.map((g) => (
-                    <Badge key={g.id} variant="secondary" className="text-xs">
-                      {g.name}
-                    </Badge>
-                  ))}
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto glass-card border-border/40 p-0">
+          {isLoading || !details ? (
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-72 w-full rounded-lg" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            <>
+              {/* Poster */}
+              {posterUrl && (
+                <div className="relative w-full aspect-[2/3] max-h-[360px] overflow-hidden">
+                  <img src={posterUrl} alt={details.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
                 </div>
               )}
 
-              {/* Synopsis */}
-              {details.overview && (
-                <p className="text-sm text-muted-foreground leading-relaxed">{details.overview}</p>
-              )}
+              <div className="p-6 space-y-5 -mt-12 relative z-10">
+                <SheetHeader className="space-y-1">
+                  <SheetTitle className="text-2xl font-display font-bold leading-tight">
+                    {details.title}
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Details for {details.title}
+                  </SheetDescription>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {year && <span>{year}</span>}
+                    {details.runtime && <span>· {details.runtime} min</span>}
+                    {details.vote_average > 0 && (
+                      <span className="flex items-center gap-1">
+                        · <Star className="h-3 w-3 fill-accent text-accent" />
+                        {details.vote_average.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                </SheetHeader>
 
-              {/* Cast */}
-              {cast.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Cast
-                  </h4>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {cast.map((c) => (
-                      <div key={c.id} className="flex flex-col items-center gap-1 min-w-[60px]">
-                        {c.profile_path ? (
-                          <img
-                            src={`${TMDB_IMAGE_BASE}/w185${c.profile_path}`}
-                            alt={c.name}
-                            className="h-14 w-14 rounded-full object-cover border border-border/40"
-                          />
-                        ) : (
-                          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                            ?
-                          </div>
-                        )}
-                        <span className="text-[10px] text-center leading-tight line-clamp-2">{c.name}</span>
-                      </div>
+                {/* Genres */}
+                {details.genres?.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {details.genres.map((g) => (
+                      <Badge key={g.id} variant="secondary" className="text-xs">
+                        {g.name}
+                      </Badge>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Shelf controls */}
-              {!userMovie ? (
-                <Button
-                  onClick={handleAdd}
-                  disabled={addToShelf.isPending}
-                  className="w-full glow-primary"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add to Shelf
-                </Button>
-              ) : (
-                <div className="space-y-4 glass-card rounded-xl p-4">
-                  {/* Status toggle */}
+                {/* Synopsis */}
+                {details.overview && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">{details.overview}</p>
+                )}
+
+                {/* Cast */}
+                {cast.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Status
+                      Cast
                     </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {STATUS_OPTIONS.map((s) => (
-                        <Button
-                          key={s.value}
-                          size="sm"
-                          variant={userMovie.status === s.value ? "default" : "outline"}
-                          onClick={() => {
-                            updateStatus.mutate(s.value, {
-                              onSuccess: () => toast.success(`Status set to "${s.label}"`),
-                            });
-                          }}
-                          disabled={updateStatus.isPending}
-                          className="text-xs"
-                        >
-                          {s.label}
-                        </Button>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {cast.map((c) => (
+                        <div key={c.id} className="flex flex-col items-center gap-1 min-w-[60px]">
+                          {c.profile_path ? (
+                            <img
+                              src={`${TMDB_IMAGE_BASE}/w185${c.profile_path}`}
+                              alt={c.name}
+                              className="h-14 w-14 rounded-full object-cover border border-border/40"
+                            />
+                          ) : (
+                            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                              ?
+                            </div>
+                          )}
+                          <span className="text-[10px] text-center leading-tight line-clamp-2">{c.name}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
+                )}
 
-                  {/* Rating (only for watched) */}
-                  {userMovie.status === "watched" && (
+                {/* Shelf controls */}
+                {!userMovie ? (
+                  <Button
+                    onClick={handleAdd}
+                    disabled={addToShelf.isPending}
+                    className="w-full glow-primary"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add to Shelf
+                  </Button>
+                ) : (
+                  <div className="space-y-4 glass-card rounded-xl p-4">
+                    {/* Status toggle */}
                     <div className="space-y-2">
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Your Rating
+                        Status
                       </h4>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
+                      <div className="grid grid-cols-2 gap-2">
+                        {STATUS_OPTIONS.map((s) => (
+                          <Button
+                            key={s.value}
+                            size="sm"
+                            variant={userMovie.status === s.value ? "default" : "outline"}
                             onClick={() => {
-                              const newRating = userMovie.rating === star ? null : star;
-                              updateRating.mutate(newRating);
+                              updateStatus.mutate(s.value, {
+                                onSuccess: () => toast.success(`Status set to "${s.label}"`),
+                              });
                             }}
-                            className="p-1 transition-transform hover:scale-110"
+                            disabled={updateStatus.isPending}
+                            className="text-xs"
                           >
-                            <Star
-                              className={`h-6 w-6 ${
-                                (userMovie.rating ?? 0) >= star
-                                  ? "fill-accent text-accent"
-                                  : "text-muted-foreground/40"
-                              }`}
-                            />
-                          </button>
+                            {s.label}
+                          </Button>
                         ))}
                       </div>
                     </div>
-                  )}
 
-                  {/* Notes */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Notes
-                    </h4>
-                    <Textarea
-                      placeholder="Add personal notes..."
-                      value={localNotes}
-                      onChange={(e) => setLocalNotes(e.target.value)}
-                      className="glass-input min-h-[80px] text-sm resize-none"
-                    />
+                    {/* Rating (only for watched) */}
+                    {userMovie.status === "watched" && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Your Rating
+                        </h4>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={() => {
+                                const newRating = userMovie.rating === star ? null : star;
+                                updateRating.mutate(newRating);
+                              }}
+                              className="p-1 transition-transform hover:scale-110"
+                            >
+                              <Star
+                                className={`h-6 w-6 ${
+                                  (userMovie.rating ?? 0) >= star
+                                    ? "fill-accent text-accent"
+                                    : "text-muted-foreground/40"
+                                }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes with explicit save/cancel */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Notes
+                      </h4>
+                      <Textarea
+                        placeholder="Add personal notes..."
+                        value={localNotes}
+                        onChange={(e) => {
+                          setLocalNotes(e.target.value);
+                          if (!notesEditing) setNotesEditing(true);
+                        }}
+                        className="glass-input min-h-[80px] text-sm resize-none"
+                      />
+                      {notesEditing && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleNotesSave}
+                            disabled={updateNotes.isPending}
+                            className="flex-1"
+                          >
+                            <Save className="h-3 w-3 mr-1" />
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleNotesCancel}
+                            className="flex-1"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Remove */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemove}
+                      disabled={removeFromShelf.isPending}
+                      className="text-destructive hover:text-destructive w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Remove from Shelf
+                    </Button>
                   </div>
+                )}
 
-                  {/* Remove */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRemove}
-                    disabled={removeFromShelf.isPending}
-                    className="text-destructive hover:text-destructive w-full"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Remove from Shelf
-                  </Button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+                {/* Similar Movies */}
+                {similarMovies.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      You might also like
+                    </h4>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {similarMovies.map((movie) => (
+                        <button
+                          key={movie.id}
+                          onClick={() => handleSimilarClick(movie.id)}
+                          className="flex flex-col items-center gap-1.5 min-w-[90px] group"
+                        >
+                          {movie.poster_path ? (
+                            <img
+                              src={`${TMDB_IMAGE_BASE}/w185${movie.poster_path}`}
+                              alt={movie.title}
+                              className="h-[120px] w-[80px] rounded-lg object-cover border border-border/40 transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="h-[120px] w-[80px] rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                              No image
+                            </div>
+                          )}
+                          <span className="text-[11px] text-center leading-tight line-clamp-2 text-muted-foreground group-hover:text-foreground transition-colors">
+                            {movie.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Nested panel for similar movie */}
+      {selectedSimilarId && (
+        <MovieDetailPanel
+          movieId={selectedSimilarId}
+          open={!!selectedSimilarId}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setSelectedSimilarId(null);
+          }}
+        />
+      )}
+    </>
   );
 }

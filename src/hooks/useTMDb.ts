@@ -89,4 +89,13 @@ export function useMovieDetails(movieId: number | null) {
   });
 }
 
+export function useSimilarMovies(movieId: number | null) {
+  return useQuery<{ results: TMDbMovie[] }>({
+    queryKey: ["tmdb-similar", movieId],
+    queryFn: () => fetchTMDb({ action: "similar", movie_id: String(movieId) }),
+    enabled: movieId !== null,
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
