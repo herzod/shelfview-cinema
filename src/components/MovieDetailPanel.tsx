@@ -19,13 +19,20 @@ const STATUS_OPTIONS: { value: WatchStatus; label: string }[] = [
   { value: "dropped", label: "Dropped" },
 ];
 
+export interface BrowseTarget {
+  type: "genre" | "cast";
+  id: number;
+  name: string;
+}
+
 interface MovieDetailPanelProps {
   movieId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onBrowse?: (target: BrowseTarget) => void;
 }
 
-export function MovieDetailPanel({ movieId, open, onOpenChange }: MovieDetailPanelProps) {
+export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: MovieDetailPanelProps) {
   const { data: details, isLoading } = useMovieDetails(open ? movieId : null);
   const { data: similarData } = useSimilarMovies(open ? movieId : null);
   const { userMovie, addToShelf, updateStatus, updateRating, updateNotes, removeFromShelf } =
@@ -134,11 +141,19 @@ export function MovieDetailPanel({ movieId, open, onOpenChange }: MovieDetailPan
                   </div>
                 </SheetHeader>
 
-                {/* Genres */}
+                {/* Genres - clickable */}
                 {details.genres?.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {details.genres.map((g) => (
-                      <Badge key={g.id} variant="secondary" className="text-xs">
+                      <Badge
+                        key={g.id}
+                        variant="secondary"
+                        className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                        onClick={() => {
+                          onBrowse?.({ type: "genre", id: g.id, name: g.name });
+                          onOpenChange(false);
+                        }}
+                      >
                         {g.name}
                       </Badge>
                     ))}
@@ -158,20 +173,27 @@ export function MovieDetailPanel({ movieId, open, onOpenChange }: MovieDetailPan
                     </h4>
                     <div className="flex gap-3 overflow-x-auto pb-2">
                       {cast.map((c) => (
-                        <div key={c.id} className="flex flex-col items-center gap-1 min-w-[60px]">
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            onBrowse?.({ type: "cast", id: c.id, name: c.name });
+                            onOpenChange(false);
+                          }}
+                          className="flex flex-col items-center gap-1 min-w-[60px] group/cast"
+                        >
                           {c.profile_path ? (
                             <img
                               src={`${TMDB_IMAGE_BASE}/w185${c.profile_path}`}
                               alt={c.name}
-                              className="h-14 w-14 rounded-full object-cover border border-border/40"
+                              className="h-14 w-14 rounded-full object-cover border border-border/40 transition-transform group-hover/cast:scale-110 group-hover/cast:border-primary"
                             />
                           ) : (
                             <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
                               ?
                             </div>
                           )}
-                          <span className="text-[10px] text-center leading-tight line-clamp-2">{c.name}</span>
-                        </div>
+                          <span className="text-[10px] text-center leading-tight line-clamp-2 group-hover/cast:text-primary transition-colors">{c.name}</span>
+                        </button>
                       ))}
                     </div>
                   </div>
