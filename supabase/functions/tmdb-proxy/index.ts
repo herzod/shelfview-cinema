@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
     const query = url.searchParams.get("query");
     const movieId = url.searchParams.get("movie_id");
     const page = url.searchParams.get("page") || "1";
+    const genreId = url.searchParams.get("genre_id");
+    const personId = url.searchParams.get("person_id");
 
     let tmdbUrl: string;
 
@@ -36,9 +38,13 @@ Deno.serve(async (req) => {
       tmdbUrl = `${TMDB_BASE}/trending/movie/week?api_key=${TMDB_API_KEY}&page=${page}`;
     } else if (action === "similar" && movieId) {
       tmdbUrl = `${TMDB_BASE}/movie/${movieId}/similar?api_key=${TMDB_API_KEY}&page=1`;
+    } else if (action === "discover" && genreId) {
+      tmdbUrl = `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=${page}`;
+    } else if (action === "person_movies" && personId) {
+      tmdbUrl = `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_cast=${personId}&sort_by=popularity.desc&page=${page}`;
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: search, details, or trending" }),
+        JSON.stringify({ error: "Invalid action" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

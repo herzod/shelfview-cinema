@@ -1,28 +1,49 @@
 import { useState } from "react";
-import { Search, TrendingUp } from "lucide-react";
+import { Search, TrendingUp, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { MovieCard } from "@/components/MovieCard";
 import { MovieGridSkeleton } from "@/components/MovieGridSkeleton";
-import { MovieDetailPanel } from "@/components/MovieDetailPanel";
+import { MovieDetailPanel, BrowseTarget } from "@/components/MovieDetailPanel";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useMovieSearch, useTrendingMovies, TMDbMovie } from "@/hooks/useTMDb";
+import { useMovieSearch, useTrendingMovies, useDiscoverByGenre, usePersonMovies, TMDbMovie } from "@/hooks/useTMDb";
+import { useShelfMovieIds } from "@/hooks/useShelfMovieIds";
 
 const Index = () => {
   const [query, setQuery] = useState("");
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [browseTarget, setBrowseTarget] = useState<BrowseTarget | null>(null);
   const debouncedQuery = useDebounce(query.trim(), 400);
 
   const isSearching = debouncedQuery.length >= 2;
+  const isBrowsing = browseTarget !== null;
+
   const searchResults = useMovieSearch(debouncedQuery);
   const trendingResults = useTrendingMovies();
+  const genreResults = useDiscoverByGenre(browseTarget?.type === "genre" ? browseTarget.id : null);
+  const castResults = usePersonMovies(browseTarget?.type === "cast" ? browseTarget.id : null);
+  const { data: shelfIds } = useShelfMovieIds();
 
-  const activeQuery = isSearching ? searchResults : trendingResults;
+  // Determine which results to show
+  let activeQuery = isSearching ? searchResults : trendingResults;
+  if (isBrowsing && !isSearching) {
+    activeQuery = browseTarget.type === "genre" ? genreResults : castResults;
+  }
   const movies = activeQuery.data?.results ?? [];
 
   const handleMovieClick = (movie: TMDbMovie) => {
     setSelectedMovieId(movie.id);
     setPanelOpen(true);
+  };
+
+  const handleBrowse = (target: BrowseTarget) => {
+    setBrowseTarget(target);
+    setQuery("");
+  };
+
+  const clearBrowse = () => {
+    setBrowseTarget(null);
   };
 
   return (
@@ -47,8 +68,21 @@ const Index = () => {
         />
       </div>
 
+      {/* Browse mode header */}
+      {isBrowsing && !isSearching && (
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={clearBrowse} className="gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {browseTarget.type === "genre" ? "Genre" : "Movies with"}: <span className="text-foreground font-medium">{browseTarget.name}</span>
+          </span>
+        </div>
+      )}
+
       {/* Section header */}
-      {!isSearching && (
+      {!isSearching && !isBrowsing && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <TrendingUp className="h-4 w-4" />
           <span>Trending this week</span>
@@ -74,6 +108,7 @@ const Index = () => {
               movie={movie}
               onClick={handleMovieClick}
               index={i}
+              isOnShelf={shelfIds?.has(movie.id)}
             />
           ))}
         </div>
@@ -89,6 +124,7 @@ const Index = () => {
         movieId={selectedMovieId}
         open={panelOpen}
         onOpenChange={setPanelOpen}
+        onBrowse={handleBrowse}
       />
     </div>
   );

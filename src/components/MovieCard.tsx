@@ -1,14 +1,15 @@
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
+import { Star, BookmarkCheck } from "lucide-react";
 import { TMDbMovie, TMDB_IMAGE_BASE } from "@/hooks/useTMDb";
 
 interface MovieCardProps {
   movie: TMDbMovie;
   onClick: (movie: TMDbMovie) => void;
   index?: number;
+  isOnShelf?: boolean;
 }
 
-export function MovieCard({ movie, onClick, index = 0 }: MovieCardProps) {
+export function MovieCard({ movie, onClick, index = 0, isOnShelf }: MovieCardProps) {
   const year = movie.release_date?.split("-")[0];
   const rating = movie.vote_average?.toFixed(1);
   const posterUrl = movie.poster_path
@@ -43,6 +44,14 @@ export function MovieCard({ movie, onClick, index = 0 }: MovieCardProps) {
           <div className="absolute top-2 right-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-xs font-medium">
             <Star className="h-3 w-3 fill-accent text-accent" />
             {rating}
+          </div>
+        )}
+
+        {/* On shelf indicator */}
+        {isOnShelf && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-primary/90 backdrop-blur-sm px-2 py-1 text-xs font-medium text-primary-foreground">
+            <BookmarkCheck className="h-3 w-3" />
+            On Shelf
           </div>
         )}
 

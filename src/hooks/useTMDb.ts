@@ -98,4 +98,22 @@ export function useSimilarMovies(movieId: number | null) {
   });
 }
 
+export function useDiscoverByGenre(genreId: number | null, genreName?: string) {
+  return useQuery<TMDbSearchResponse>({
+    queryKey: ["tmdb-discover-genre", genreId],
+    queryFn: () => fetchTMDb({ action: "discover", genre_id: String(genreId!) }),
+    enabled: genreId !== null,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function usePersonMovies(personId: number | null) {
+  return useQuery<TMDbSearchResponse>({
+    queryKey: ["tmdb-person-movies", personId],
+    queryFn: () => fetchTMDb({ action: "person_movies", person_id: String(personId!) }),
+    enabled: personId !== null,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
