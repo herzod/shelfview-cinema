@@ -1,84 +1,117 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Library } from "lucide-react";
+import { Library, Star, Eye, EyeOff, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { MovieDetailPanel } from "@/components/MovieDetailPanel";
+import { MovieDetailPanel, BrowseTarget } from "@/components/MovieDetailPanel";
 import { TMDB_IMAGE_BASE } from "@/hooks/useTMDb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import type { Database } from "@/integrations/supabase/types";
+import { formatDistanceToNow } from "date-fns";
 
-type WatchStatus = Database["public"]["Enums"]["watch_status"];
-
-const STATUS_LABELS: Record<WatchStatus, string> = {
-  plan_to_watch: "Plan to Watch",
-  watching: "Watching",
-  watched: "Watched",
-  dropped: "Dropped",
+const GENRE_MAP: Record<number, string> = {
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
+  80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
+  14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
+  9648: "Mystery", 10749: "Romance", 878: "Sci-Fi", 10770: "TV Movie",
+  53: "Thriller", 10752: "War", 37: "Western",
 };
 
-const STATUS_FILTERS: { value: WatchStatus | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "plan_to_watch", label: "Plan to Watch" },
-  { value: "watching", label: "Watching" },
-  { value: "watched", label: "Watched" },
-  { value: "dropped", label: "Dropped" },
-];
+type WatchFilter = "all" | "watched" | "unwatched";
 
 const Shelf = () => {
   const { user } = useAuth();
-  const [filter, setFilter] = useState<WatchStatus | "all">("all");
+  const [watchFilter, setWatchFilter] = useState<WatchFilter>("all");
+  const [genreFilter, setGenreFilter] = useState<number | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
 
   const { data: movies, isLoading } = useQuery({
-    queryKey: ["user-movies", filter],
+    queryKey: ["user-movies"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("user_movies")
         .select("*")
         .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-
-      if (filter !== "all") {
-        query = query.eq("status", filter);
-      }
-
-      const { data, error } = await query;
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
 
+  // Derive available genres from shelf movies
+  const availableGenres = new Map<number, string>();
+  movies?.forEach((m) => {
+    (m.genre_ids as number[] | null)?.forEach((gid) => {
+      if (GENRE_MAP[gid]) availableGenres.set(gid, GENRE_MAP[gid]);
+    });
+  });
+
+  // Filter client-side
+  const filtered = movies?.filter((m) => {
+    if (watchFilter === "watched" && m.status !== "watched") return false;
+    if (watchFilter === "unwatched" && m.status === "watched") return false;
+    if (genreFilter !== null && !(m.genre_ids as number[] | null)?.includes(genreFilter)) return false;
+    return true;
+  });
+
+  const lastModified = movies?.[0]?.updated_at;
+
+  const handleBrowse = (target: BrowseTarget) => {
+    // Could navigate to discover page; for now just close panel
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold tracking-tight">
-          My Shelf
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Your personal movie collection.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">My Shelf</h1>
+          <p className="mt-1 text-muted-foreground">Your personal movie collection.</p>
+        </div>
+        {lastModified && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 pt-2">
+            <Clock className="h-3 w-3" />
+            Updated {formatDistanceToNow(new Date(lastModified), { addSuffix: true })}
+          </div>
+        )}
       </div>
 
-      {/* Filter tabs */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((s) => (
+        {(["all", "watched", "unwatched"] as WatchFilter[]).map((v) => (
           <Button
-            key={s.value}
+            key={v}
             size="sm"
-            variant={filter === s.value ? "default" : "outline"}
-            onClick={() => setFilter(s.value)}
-            className="text-xs"
+            variant={watchFilter === v ? "default" : "outline"}
+            onClick={() => setWatchFilter(v)}
+            className="text-xs gap-1.5"
           >
-            {s.label}
+            {v === "watched" && <Eye className="h-3 w-3" />}
+            {v === "unwatched" && <EyeOff className="h-3 w-3" />}
+            {v === "all" ? "All" : v === "watched" ? "Watched" : "Unwatched"}
           </Button>
         ))}
+
+        {/* Genre pills */}
+        {availableGenres.size > 0 && (
+          <>
+            <div className="w-px h-6 bg-border self-center mx-1" />
+            {[...availableGenres.entries()].map(([gid, name]) => (
+              <Button
+                key={gid}
+                size="sm"
+                variant={genreFilter === gid ? "default" : "outline"}
+                onClick={() => setGenreFilter(genreFilter === gid ? null : gid)}
+                className="text-xs"
+              >
+                {name}
+              </Button>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Grid */}
@@ -91,12 +124,13 @@ const Shelf = () => {
             </div>
           ))}
         </div>
-      ) : movies && movies.length > 0 ? (
+      ) : filtered && filtered.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {movies.map((movie, i) => {
+          {filtered.map((movie, i) => {
             const posterUrl = movie.poster_path
               ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}`
               : null;
+            const isWatched = movie.status === "watched";
 
             return (
               <motion.button
@@ -124,18 +158,29 @@ const Shelf = () => {
                     </div>
                   )}
 
-                  {/* Status badge */}
+                  {/* Watched indicator */}
                   <div className="absolute top-2 left-2">
-                    <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">
-                      {STATUS_LABELS[movie.status]}
-                    </Badge>
+                    {isWatched ? (
+                      <div className="flex items-center gap-1 rounded-md bg-primary/90 backdrop-blur-sm px-2 py-1 text-xs font-medium text-primary-foreground">
+                        <Eye className="h-3 w-3" />
+                        Watched
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-xs font-medium text-muted-foreground">
+                        <EyeOff className="h-3 w-3" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Rating */}
                   {movie.rating && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-xs font-medium">
-                      <Star className="h-3 w-3 fill-accent text-accent" />
-                      {movie.rating}/5
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`h-3 w-3 ${s <= movie.rating! ? "fill-accent text-accent" : "text-muted-foreground/30"}`}
+                        />
+                      ))}
                     </div>
                   )}
 
@@ -155,9 +200,9 @@ const Shelf = () => {
         <div className="glass-card rounded-xl p-12 text-center space-y-3">
           <Library className="h-12 w-12 text-muted-foreground/40 mx-auto" />
           <p className="text-muted-foreground">
-            {filter === "all"
+            {watchFilter === "all" && !genreFilter
               ? "Your shelf is empty. Search for movies to get started!"
-              : `No movies with status "${STATUS_LABELS[filter]}".`}
+              : "No movies match your current filters."}
           </p>
         </div>
       )}
@@ -166,6 +211,7 @@ const Shelf = () => {
         movieId={selectedMovieId}
         open={panelOpen}
         onOpenChange={setPanelOpen}
+        onBrowse={handleBrowse}
       />
     </div>
   );

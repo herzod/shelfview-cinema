@@ -22,7 +22,10 @@ const Index = () => {
   const searchResults = useMovieSearch(debouncedQuery);
   const trendingResults = useTrendingMovies();
   const genreResults = useDiscoverByGenre(browseTarget?.type === "genre" ? browseTarget.id : null);
-  const castResults = usePersonMovies(browseTarget?.type === "cast" ? browseTarget.id : null);
+  const castResults = usePersonMovies(
+    browseTarget?.type === "cast" || browseTarget?.type === "director" ? browseTarget.id : null,
+    browseTarget?.type === "director" ? "crew" : "cast"
+  );
   const { data: shelfIds } = useShelfMovieIds();
 
   // Determine which results to show
@@ -76,7 +79,7 @@ const Index = () => {
             Back
           </Button>
           <span className="text-sm text-muted-foreground">
-            {browseTarget.type === "genre" ? "Genre" : "Movies with"}: <span className="text-foreground font-medium">{browseTarget.name}</span>
+            {browseTarget.type === "genre" ? "Genre" : browseTarget.type === "director" ? "Director" : "Movies with"}: <span className="text-foreground font-medium">{browseTarget.name}</span>
           </span>
         </div>
       )}

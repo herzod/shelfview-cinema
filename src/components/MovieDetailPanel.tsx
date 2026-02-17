@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Star, Plus, Trash2, Save, X } from "lucide-react";
+import { Star, Plus, Trash2, Save, X, Eye, EyeOff } from "lucide-react";
 import { useMovieDetails, useSimilarMovies, TMDB_IMAGE_BASE } from "@/hooks/useTMDb";
 import { useUserMovie } from "@/hooks/useUserMovie";
 import { toast } from "sonner";
@@ -12,15 +12,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 type WatchStatus = Database["public"]["Enums"]["watch_status"];
 
-const STATUS_OPTIONS: { value: WatchStatus; label: string }[] = [
-  { value: "plan_to_watch", label: "Plan to Watch" },
-  { value: "watching", label: "Watching" },
-  { value: "watched", label: "Watched" },
-  { value: "dropped", label: "Dropped" },
-];
-
 export interface BrowseTarget {
-  type: "genre" | "cast";
+  type: "genre" | "cast" | "director";
   id: number;
   name: string;
 }
@@ -42,7 +35,6 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
   const [notesEditing, setNotesEditing] = useState(false);
   const [selectedSimilarId, setSelectedSimilarId] = useState<number | null>(null);
 
-  // Sync notes from DB
   useEffect(() => {
     if (userMovie) {
       setLocalNotes(userMovie.notes ?? "");
@@ -50,15 +42,20 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
     }
   }, [userMovie?.notes]);
 
-  // Reset similar selection when main movie changes
   useEffect(() => {
     setSelectedSimilarId(null);
   }, [movieId]);
 
+  const director = details?.credits?.crew?.find((c) => c.job === "Director") ?? null;
+
   const handleAdd = useCallback(() => {
     if (!details) return;
     addToShelf.mutate(
-      { title: details.title, poster_path: details.poster_path },
+      {
+        title: details.title,
+        poster_path: details.poster_path,
+        genre_ids: details.genres?.map((g) => g.id) ?? [],
+      },
       { onSuccess: () => toast.success(`"${details.title}" added to shelf`) }
     );
   }, [details, addToShelf]);
@@ -69,6 +66,11 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
       onSuccess: () => toast.success(`"${details.title}" removed from shelf`),
     });
   }, [details, removeFromShelf]);
+
+  const handleToggleWatched = () => {
+    const newStatus: WatchStatus = userMovie?.status === "watched" ? "plan_to_watch" : "watched";
+    updateStatus.mutate(newStatus);
+  };
 
   const handleNotesSave = () => {
     updateNotes.mutate(localNotes, {
@@ -86,19 +88,13 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
 
   const handleSimilarClick = (id: number) => {
     setSelectedSimilarId(id);
-    // Navigate to the similar movie by updating the parent
-    // We reuse the same panel by changing movieId via onOpenChange pattern
   };
 
-  const activeMovieId = selectedSimilarId ?? movieId;
   const year = details?.release_date?.split("-")[0];
   const posterUrl = details?.poster_path ? `${TMDB_IMAGE_BASE}/w500${details.poster_path}` : null;
   const cast = details?.credits?.cast?.slice(0, 8) ?? [];
   const similarMovies = similarData?.results?.slice(0, 8) ?? [];
-
-  // If a similar movie is selected, render a nested panel approach
-  // Instead, let's just allow clicking similar movies to open them in a new panel
-  // For simplicity, we'll use a callback pattern
+  const isWatched = userMovie?.status === "watched";
 
   return (
     <>
@@ -113,7 +109,6 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
             </div>
           ) : (
             <>
-              {/* Poster */}
               {posterUrl && (
                 <div className="relative w-full aspect-[2/3] max-h-[360px] overflow-hidden">
                   <img src={posterUrl} alt={details.title} className="w-full h-full object-cover" />
@@ -141,7 +136,23 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                   </div>
                 </SheetHeader>
 
-                {/* Genres - clickable */}
+                {/* Director */}
+                {director && (
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Director</h4>
+                    <button
+                      onClick={() => {
+                        onBrowse?.({ type: "director", id: director.id, name: director.name });
+                        onOpenChange(false);
+                      }}
+                      className="text-sm font-medium hover:text-primary transition-colors"
+                    >
+                      {director.name}
+                    </button>
+                  </div>
+                )}
+
+                {/* Genres */}
                 {details.genres?.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {details.genres.map((g) => (
@@ -160,7 +171,6 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                   </div>
                 )}
 
-                {/* Synopsis */}
                 {details.overview && (
                   <p className="text-sm text-muted-foreground leading-relaxed">{details.overview}</p>
                 )}
@@ -168,9 +178,7 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                 {/* Cast */}
                 {cast.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cast
-                    </h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cast</h4>
                     <div className="flex gap-3 overflow-x-auto pb-2">
                       {cast.map((c) => (
                         <button
@@ -188,9 +196,7 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                               className="h-14 w-14 rounded-full object-cover border border-border/40 transition-transform group-hover/cast:scale-110 group-hover/cast:border-primary"
                             />
                           ) : (
-                            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                              ?
-                            </div>
+                            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">?</div>
                           )}
                           <span className="text-[10px] text-center leading-tight line-clamp-2 group-hover/cast:text-primary transition-colors">{c.name}</span>
                         </button>
@@ -201,75 +207,51 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
 
                 {/* Shelf controls */}
                 {!userMovie ? (
-                  <Button
-                    onClick={handleAdd}
-                    disabled={addToShelf.isPending}
-                    className="w-full glow-primary"
-                  >
+                  <Button onClick={handleAdd} disabled={addToShelf.isPending} className="w-full glow-primary">
                     <Plus className="h-4 w-4 mr-1" />
                     Add to Shelf
                   </Button>
                 ) : (
                   <div className="space-y-4 glass-card rounded-xl p-4">
-                    {/* Status toggle */}
+                    {/* Watched toggle */}
+                    <Button
+                      variant={isWatched ? "default" : "outline"}
+                      onClick={handleToggleWatched}
+                      disabled={updateStatus.isPending}
+                      className={`w-full gap-2 ${isWatched ? "bg-primary text-primary-foreground" : ""}`}
+                    >
+                      {isWatched ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      {isWatched ? "Watched" : "Mark as Watched"}
+                    </Button>
+
+                    {/* Rating - always visible */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Status
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {STATUS_OPTIONS.map((s) => (
-                          <Button
-                            key={s.value}
-                            size="sm"
-                            variant={userMovie.status === s.value ? "default" : "outline"}
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Rating</h4>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
                             onClick={() => {
-                              updateStatus.mutate(s.value, {
-                                onSuccess: () => toast.success(`Status set to "${s.label}"`),
-                              });
+                              const newRating = userMovie.rating === star ? null : star;
+                              updateRating.mutate(newRating);
                             }}
-                            disabled={updateStatus.isPending}
-                            className="text-xs"
+                            className="p-1 transition-transform hover:scale-110"
                           >
-                            {s.label}
-                          </Button>
+                            <Star
+                              className={`h-6 w-6 ${
+                                (userMovie.rating ?? 0) >= star
+                                  ? "fill-accent text-accent"
+                                  : "text-muted-foreground/40"
+                              }`}
+                            />
+                          </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Rating (only for watched) */}
-                    {userMovie.status === "watched" && (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Your Rating
-                        </h4>
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              onClick={() => {
-                                const newRating = userMovie.rating === star ? null : star;
-                                updateRating.mutate(newRating);
-                              }}
-                              className="p-1 transition-transform hover:scale-110"
-                            >
-                              <Star
-                                className={`h-6 w-6 ${
-                                  (userMovie.rating ?? 0) >= star
-                                    ? "fill-accent text-accent"
-                                    : "text-muted-foreground/40"
-                                }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notes with explicit save/cancel */}
+                    {/* Notes */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Notes
-                      </h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h4>
                       <Textarea
                         placeholder="Add personal notes..."
                         value={localNotes}
@@ -281,29 +263,16 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                       />
                       {notesEditing && (
                         <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={handleNotesSave}
-                            disabled={updateNotes.isPending}
-                            className="flex-1"
-                          >
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
+                          <Button size="sm" onClick={handleNotesSave} disabled={updateNotes.isPending} className="flex-1">
+                            <Save className="h-3 w-3 mr-1" /> Save
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleNotesCancel}
-                            className="flex-1"
-                          >
-                            <X className="h-3 w-3 mr-1" />
-                            Cancel
+                          <Button size="sm" variant="outline" onClick={handleNotesCancel} className="flex-1">
+                            <X className="h-3 w-3 mr-1" /> Cancel
                           </Button>
                         </div>
                       )}
                     </div>
 
-                    {/* Remove */}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -311,8 +280,7 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                       disabled={removeFromShelf.isPending}
                       className="text-destructive hover:text-destructive w-full"
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Remove from Shelf
+                      <Trash2 className="h-4 w-4 mr-1" /> Remove from Shelf
                     </Button>
                   </div>
                 )}
@@ -320,9 +288,7 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                 {/* Similar Movies */}
                 {similarMovies.length > 0 && (
                   <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      You might also like
-                    </h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">You might also like</h4>
                     <div className="flex gap-3 overflow-x-auto pb-2">
                       {similarMovies.map((movie) => (
                         <button
@@ -337,9 +303,7 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                               className="h-[120px] w-[80px] rounded-lg object-cover border border-border/40 transition-transform group-hover:scale-105"
                             />
                           ) : (
-                            <div className="h-[120px] w-[80px] rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                              No image
-                            </div>
+                            <div className="h-[120px] w-[80px] rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
                           )}
                           <span className="text-[11px] text-center leading-tight line-clamp-2 text-muted-foreground group-hover:text-foreground transition-colors">
                             {movie.title}
@@ -355,7 +319,6 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
         </SheetContent>
       </Sheet>
 
-      {/* Nested panel for similar movie */}
       {selectedSimilarId && (
         <MovieDetailPanel
           movieId={selectedSimilarId}
