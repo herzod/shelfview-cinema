@@ -41,7 +41,9 @@ Deno.serve(async (req) => {
     } else if (action === "discover" && genreId) {
       tmdbUrl = `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=${page}`;
     } else if (action === "person_movies" && personId) {
-      tmdbUrl = `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_cast=${personId}&sort_by=popularity.desc&page=${page}`;
+      const role = url.searchParams.get("role") || "cast";
+      const withParam = role === "crew" ? "with_crew" : "with_cast";
+      tmdbUrl = `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&${withParam}=${personId}&sort_by=popularity.desc&page=${page}`;
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid action" }),

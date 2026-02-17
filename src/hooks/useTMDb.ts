@@ -65,6 +65,7 @@ export interface TMDbMovieDetails {
   genres: { id: number; name: string }[];
   credits?: {
     cast: { id: number; name: string; character: string; profile_path: string | null }[];
+    crew: { id: number; name: string; job: string; profile_path: string | null }[];
   };
 }
 
@@ -107,10 +108,10 @@ export function useDiscoverByGenre(genreId: number | null, genreName?: string) {
   });
 }
 
-export function usePersonMovies(personId: number | null) {
+export function usePersonMovies(personId: number | null, role: "cast" | "crew" = "cast") {
   return useQuery<TMDbSearchResponse>({
-    queryKey: ["tmdb-person-movies", personId],
-    queryFn: () => fetchTMDb({ action: "person_movies", person_id: String(personId!) }),
+    queryKey: ["tmdb-person-movies", personId, role],
+    queryFn: () => fetchTMDb({ action: "person_movies", person_id: String(personId!), role }),
     enabled: personId !== null,
     staleTime: 1000 * 60 * 30,
   });

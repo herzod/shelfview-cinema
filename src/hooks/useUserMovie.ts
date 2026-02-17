@@ -32,13 +32,14 @@ export function useUserMovie(movieId: number | null) {
   };
 
   const addToShelf = useMutation({
-    mutationFn: async (params: { title: string; poster_path: string | null }) => {
+    mutationFn: async (params: { title: string; poster_path: string | null; genre_ids?: number[] }) => {
       const { error } = await supabase.from("user_movies").insert({
         user_id: user!.id,
         movie_id: movieId!,
         title: params.title,
         poster_path: params.poster_path,
         status: "plan_to_watch" as WatchStatus,
+        genre_ids: params.genre_ids ?? [],
       });
       if (error) throw error;
     },

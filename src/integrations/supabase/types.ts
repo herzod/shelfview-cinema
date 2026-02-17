@@ -17,6 +17,7 @@ export type Database = {
       user_movies: {
         Row: {
           created_at: string
+          genre_ids: number[] | null
           id: string
           movie_id: number
           notes: string | null
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          genre_ids?: number[] | null
           id?: string
           movie_id: number
           notes?: string | null
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          genre_ids?: number[] | null
           id?: string
           movie_id?: number
           notes?: string | null
