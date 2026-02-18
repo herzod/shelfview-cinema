@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Library, Star, Eye, EyeOff, Clock } from "lucide-react";
+import { Library, Star, Eye, EyeOff, Clock, Filter, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MovieDetailPanel, BrowseTarget } from "@/components/MovieDetailPanel";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const GENRE_MAP: Record<number, string> = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
@@ -80,7 +81,7 @@ const Shelf = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         {(["all", "watched", "unwatched"] as WatchFilter[]).map((v) => (
           <Button
             key={v}
@@ -95,22 +96,43 @@ const Shelf = () => {
           </Button>
         ))}
 
-        {/* Genre pills */}
+        {/* Genre filter popover */}
         {availableGenres.size > 0 && (
-          <>
-            <div className="w-px h-6 bg-border self-center mx-1" />
-            {[...availableGenres.entries()].map(([gid, name]) => (
+          <Popover>
+            <PopoverTrigger asChild>
               <Button
-                key={gid}
                 size="sm"
-                variant={genreFilter === gid ? "default" : "outline"}
-                onClick={() => setGenreFilter(genreFilter === gid ? null : gid)}
-                className="text-xs"
+                variant={genreFilter !== null ? "default" : "outline"}
+                className="text-xs gap-1.5"
               >
-                {name}
+                <Filter className="h-3 w-3" />
+                {genreFilter !== null ? availableGenres.get(genreFilter) : "Genre"}
               </Button>
-            ))}
-          </>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant={genreFilter === null ? "default" : "outline"}
+                  onClick={() => setGenreFilter(null)}
+                  className="text-xs h-7"
+                >
+                  All
+                </Button>
+                {[...availableGenres.entries()].map(([gid, name]) => (
+                  <Button
+                    key={gid}
+                    size="sm"
+                    variant={genreFilter === gid ? "default" : "outline"}
+                    onClick={() => setGenreFilter(genreFilter === gid ? null : gid)}
+                    className="text-xs h-7"
+                  >
+                    {name}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
 
@@ -191,6 +213,12 @@ const Shelf = () => {
                   <h3 className="font-display font-semibold text-sm leading-tight line-clamp-2">
                     {movie.title}
                   </h3>
+                  {movie.notes && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <StickyNote className="h-3 w-3" />
+                      <span className="truncate">Has notes</span>
+                    </div>
+                  )}
                 </div>
               </motion.button>
             );

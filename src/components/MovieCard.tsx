@@ -49,9 +49,8 @@ export function MovieCard({ movie, onClick, index = 0, isOnShelf }: MovieCardPro
 
         {/* On shelf indicator */}
         {isOnShelf && (
-          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-primary/90 backdrop-blur-sm px-2 py-1 text-xs font-medium text-primary-foreground">
+          <div className="absolute top-2 left-2 flex items-center rounded-md bg-primary/90 backdrop-blur-sm p-1.5 text-primary-foreground">
             <BookmarkCheck className="h-3 w-3" />
-            On Shelf
           </div>
         )}
 
