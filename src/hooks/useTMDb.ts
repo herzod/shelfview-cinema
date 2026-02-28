@@ -20,18 +20,18 @@ interface TMDbSearchResponse {
   total_results: number;
 }
 
-async function fetchTMDb(params: Record<string, string>): Promise<TMDbSearchResponse> {
-  const url = new URL(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tmdb-proxy`
-  );
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    },
+async function fetchTMDb(params: Record<string, string>): Promise<TMDbSearchResponse> {
+  const url = new URL(`${TMDB_BASE}/${params.path || "search/movie"}`);
+  url.searchParams.set("api_key", TMDB_API_KEY);
+
+  Object.entries(params).forEach(([k, v]) => {
+    if (k !== "path") url.searchParams.set(k, v);
   });
 
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Failed to fetch from TMDb");
   return res.json();
 }
@@ -39,7 +39,7 @@ async function fetchTMDb(params: Record<string, string>): Promise<TMDbSearchResp
 export function useMovieSearch(query: string) {
   return useQuery({
     queryKey: ["tmdb-search", query],
-    queryFn: () => fetchTMDb({ action: "search", query }),
+    queryFn: () => fetchTMDb({ path: "search/movie", query }),
     enabled: query.length >= 2,
     staleTime: 1000 * 60 * 5,
   });
@@ -48,10 +48,11 @@ export function useMovieSearch(query: string) {
 export function useTrendingMovies() {
   return useQuery({
     queryKey: ["tmdb-trending"],
-    queryFn: () => fetchTMDb({ action: "trending" }),
+    queryFn: () => fetchTMDb({ path: "trending/movie/week" }),
     staleTime: 1000 * 60 * 30,
   });
 }
+
 
 export interface TMDbMovieDetails {
   id: number;
@@ -73,15 +74,11 @@ export function useMovieDetails(movieId: number | null) {
   return useQuery<TMDbMovieDetails>({
     queryKey: ["tmdb-details", movieId],
     queryFn: async () => {
-      const url = new URL(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tmdb-proxy`
-      );
-      url.searchParams.set("action", "details");
-      url.searchParams.set("movie_id", String(movieId));
+      const url = new URL(`${TMDB_BASE}/movie/${movieId}`);
+      url.searchParams.set("api_key", TMDB_API_KEY);
+      url.searchParams.set("append_to_response", "credits");
 
-      const res = await fetch(url.toString(), {
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-      });
+      const res = await fetch(url.toString());
       if (!res.ok) throw new Error("Failed to fetch movie details");
       return res.json();
     },
@@ -93,7 +90,7 @@ export function useMovieDetails(movieId: number | null) {
 export function useSimilarMovies(movieId: number | null) {
   return useQuery<{ results: TMDbMovie[] }>({
     queryKey: ["tmdb-similar", movieId],
-    queryFn: () => fetchTMDb({ action: "similar", movie_id: String(movieId) }),
+    queryFn: () => fetchTMDb({ path: `movie/${movieId}/similar` }),
     enabled: movieId !== null,
     staleTime: 1000 * 60 * 60,
   });
@@ -102,7 +99,11 @@ export function useSimilarMovies(movieId: number | null) {
 export function useDiscoverByGenre(genreId: number | null, genreName?: string) {
   return useQuery<TMDbSearchResponse>({
     queryKey: ["tmdb-discover-genre", genreId],
-    queryFn: () => fetchTMDb({ action: "discover", genre_id: String(genreId!) }),
+    queryFn: () => fetchTMDb({
+      path: "discover/movie",
+      genre_id: String(genreId!),
+      sort_by: "popularity.desc"
+    }),
     enabled: genreId !== null,
     staleTime: 1000 * 60 * 30,
   });
@@ -111,10 +112,18 @@ export function useDiscoverByGenre(genreId: number | null, genreName?: string) {
 export function usePersonMovies(personId: number | null, role: "cast" | "crew" = "cast") {
   return useQuery<TMDbSearchResponse>({
     queryKey: ["tmdb-person-movies", personId, role],
-    queryFn: () => fetchTMDb({ action: "person_movies", person_id: String(personId!), role }),
+    queryFn: () => {
+      const withParam = role === "crew" ? "with_crew" : "with_cast";
+      return fetchTMDb({
+        path: "discover/movie",
+        [withParam]: String(personId!),
+        sort_by: "popularity.desc"
+      });
+    },
     enabled: personId !== null,
     staleTime: 1000 * 60 * 30,
   });
 }
+
 
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";

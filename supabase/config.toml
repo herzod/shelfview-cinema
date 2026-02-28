@@ -1,4 +1,4 @@
-project_id = "bwkwxpgztbblwzswwwto"
+project_id = "wvxdvfzoisgxpoaonzeg"
 
 [functions.tmdb-proxy]
 verify_jwt = false
