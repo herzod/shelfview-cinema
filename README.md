@@ -28,7 +28,7 @@ A personal movie watchlist manager built to discover, track, and manage your mov
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone <(http://localhost:8080/shelfview-cinema/)>
 
 # Install dependencies
 npm install
