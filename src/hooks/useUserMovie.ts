@@ -29,6 +29,7 @@ export function useUserMovie(movieId: number | null) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["user-movie", movieId] });
     qc.invalidateQueries({ queryKey: ["user-movies"] });
+    qc.invalidateQueries({ queryKey: ["user-movies-ids"] });
   };
 
   const addToShelf = useMutation({

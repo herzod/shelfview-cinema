@@ -183,9 +183,8 @@ const Shelf = () => {
                   {/* Watched indicator */}
                   <div className="absolute top-2 left-2">
                     {isWatched ? (
-                      <div className="flex items-center gap-1 rounded-md bg-primary/90 backdrop-blur-sm px-2 py-1 text-xs font-medium text-primary-foreground">
+                      <div className="flex items-center justify-center rounded-md bg-primary/90 backdrop-blur-sm p-1.5 text-primary-foreground">
                         <Eye className="h-3 w-3" />
-                        Watched
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-xs font-medium text-muted-foreground">
