@@ -100,6 +100,13 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto glass-card border-border/40 p-0">
+          <SheetHeader className="sr-only">
+            <SheetTitle>{details?.title || "Movie Details"}</SheetTitle>
+            <SheetDescription>
+              {details?.overview || "View details and manage this movie in your library."}
+            </SheetDescription>
+          </SheetHeader>
+
           {isLoading || !details ? (
             <div className="p-6 space-y-4">
               <Skeleton className="h-72 w-full rounded-lg" />
@@ -117,13 +124,10 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
               )}
 
               <div className="p-6 space-y-5 -mt-12 relative z-10">
-                <SheetHeader className="space-y-1">
-                  <SheetTitle className="text-2xl font-display font-bold leading-tight">
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-display font-bold leading-tight">
                     {details.title}
-                  </SheetTitle>
-                  <SheetDescription className="sr-only">
-                    Details for {details.title}
-                  </SheetDescription>
+                  </h2>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {year && <span>{year}</span>}
                     {details.runtime && <span>· {details.runtime} min</span>}
@@ -134,7 +138,8 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                       </span>
                     )}
                   </div>
-                </SheetHeader>
+                </div>
+
 
                 {/* Director */}
                 {director && (
@@ -238,11 +243,10 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                             className="p-1 transition-transform hover:scale-110"
                           >
                             <Star
-                              className={`h-6 w-6 ${
-                                (userMovie.rating ?? 0) >= star
+                              className={`h-6 w-6 ${(userMovie.rating ?? 0) >= star
                                   ? "fill-accent text-accent"
                                   : "text-muted-foreground/40"
-                              }`}
+                                }`}
                             />
                           </button>
                         ))}
