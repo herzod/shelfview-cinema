@@ -29,7 +29,6 @@ export function useUserMovie(movieId: number | null) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["user-movie", movieId] });
     qc.invalidateQueries({ queryKey: ["user-movies"] });
-    qc.invalidateQueries({ queryKey: ["user-movies-ids"] });
   };
 
   const addToShelf = useMutation({
@@ -89,6 +88,19 @@ export function useUserMovie(movieId: number | null) {
     onError: () => toast.error("Failed to save notes"),
   });
 
+  const updateCustomGroup = useMutation({
+    mutationFn: async (custom_group: string[] | null) => {
+      const { error } = await supabase
+        .from("user_movies")
+        .update({ custom_group })
+        .eq("movie_id", movieId!)
+        .eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+    onError: () => toast.error("Failed to update custom group"),
+  });
+
   const removeFromShelf = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -109,6 +121,7 @@ export function useUserMovie(movieId: number | null) {
     updateStatus,
     updateRating,
     updateNotes,
+    updateCustomGroup,
     removeFromShelf,
   };
 }

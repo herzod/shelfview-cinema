@@ -6,7 +6,7 @@ export function useShelfMovieIds() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["user-movies-ids"],
+    queryKey: ["user-movies-ids", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_movies")

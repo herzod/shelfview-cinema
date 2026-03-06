@@ -7,9 +7,12 @@ interface MovieCardProps {
   onClick: (movie: TMDbMovie) => void;
   index?: number;
   isOnShelf?: boolean;
+  customGroup?: string[] | null;
+  isSelectable?: boolean;
+  isSelected?: boolean;
 }
 
-export function MovieCard({ movie, onClick, index = 0, isOnShelf }: MovieCardProps) {
+export function MovieCard({ movie, onClick, index = 0, isOnShelf, customGroup, isSelectable, isSelected }: MovieCardProps) {
   const year = movie.release_date?.split("-")[0];
   const rating = movie.vote_average?.toFixed(1);
   const posterUrl = movie.poster_path
@@ -22,7 +25,8 @@ export function MovieCard({ movie, onClick, index = 0, isOnShelf }: MovieCardPro
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       onClick={() => onClick(movie)}
-      className="group relative flex flex-col rounded-xl overflow-hidden glass-card-hover text-left focus:outline-none focus:ring-2 focus:ring-primary/50"
+      className={`group relative flex flex-col rounded-xl overflow-hidden glass-card-hover text-left focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${isSelectable && isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-[0.98]" : ""
+        } ${isSelectable && !isSelected ? "opacity-70 hover:opacity-100" : ""}`}
     >
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted/30">
@@ -63,9 +67,16 @@ export function MovieCard({ movie, onClick, index = 0, isOnShelf }: MovieCardPro
         <h3 className="font-display font-semibold text-sm leading-tight line-clamp-2">
           {movie.title}
         </h3>
-        {year && (
-          <p className="text-xs text-muted-foreground">{year}</p>
-        )}
+        <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground gap-1">
+          {year && <span>{year}</span>}
+          <div className="flex flex-wrap gap-1 justify-end">
+            {customGroup?.map((group) => (
+              <span key={group} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20 truncate max-w-[80px]">
+                {group}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </motion.button>
   );

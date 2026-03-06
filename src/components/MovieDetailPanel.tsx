@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Plus, Trash2, Save, X, Eye, EyeOff } from "lucide-react";
@@ -28,7 +29,7 @@ interface MovieDetailPanelProps {
 export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: MovieDetailPanelProps) {
   const { data: details, isLoading } = useMovieDetails(open ? movieId : null);
   const { data: similarData } = useSimilarMovies(open ? movieId : null);
-  const { userMovie, addToShelf, updateStatus, updateRating, updateNotes, removeFromShelf } =
+  const { userMovie, addToShelf, updateStatus, updateRating, updateNotes, updateCustomGroup, removeFromShelf } =
     useUserMovie(open ? movieId : null);
 
   const [localNotes, setLocalNotes] = useState("");
@@ -244,8 +245,8 @@ export function MovieDetailPanel({ movieId, open, onOpenChange, onBrowse }: Movi
                           >
                             <Star
                               className={`h-6 w-6 ${(userMovie.rating ?? 0) >= star
-                                  ? "fill-accent text-accent"
-                                  : "text-muted-foreground/40"
+                                ? "fill-accent text-accent"
+                                : "text-muted-foreground/40"
                                 }`}
                             />
                           </button>
